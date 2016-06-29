@@ -1105,15 +1105,9 @@ static NSString * const kEmailRegex = (@"(?:[a-z0-9!#$%\\&'*+/=?\\^_`{|}~-]+(?:\
     [params setValue:mailChimpListIDKey forKey:@"id"];
     
     NSString *email = [self.emailTextField.text stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
-    [params setValue:email forKey:@"email_address"];
-    
-<<<<<<< Updated upstream
+    [params setValue:email forKey:@"email_address"];    
     [params setValue:@"false" forKey:@"replace_interests"];
     [params setValue:@"true" forKey:@"update_existing"];
-=======
-    BOOL uMailChimpDoubleOptIn = NO;
-    [parameters setValue:[NSNumber numberWithBool:uMailChimpDoubleOptIn] forKey:@"double_optin"];
->>>>>>> Stashed changes
     
     NSMutableDictionary *mergeVars = [NSMutableDictionary dictionary];
     NSString *name = self.nameTextField.text;
