@@ -11,7 +11,7 @@ Pod::Spec.new do |s|
   s.ios.deployment_target = '7.0'
   s.public_header_files = 'LSNewsletterInvite', '*.h'
   
-  s.dependency 'ChimpKit', '~> 3.0.2'
+  s.dependency 'ChimpKit', '~> 3.1.1'
   s.dependency 'SVProgressHUD', '~> 1.0'
   
 end
