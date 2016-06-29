@@ -14,6 +14,7 @@
 @interface CKAuthViewController()
 
 @property (nonatomic, strong) NSURLSession *urlSession;
+@property (nonatomic, strong) ChimpKit *chimpKit;
 
 - (void)authWithClientId:(NSString *)clientId andSecret:(NSString *)secret;
 - (void)getAccessTokenMetaDataForAccessToken:(NSString *)accessToken;
@@ -22,6 +23,20 @@
 
 
 @implementation CKAuthViewController
+
+
+#pragma mark - Properties
+
+- (ChimpKit *)chimpKit {
+	if (_chimpKit == nil) {
+		_chimpKit = [[ChimpKit alloc] init];
+	}
+	
+	return _chimpKit;
+}
+
+
+#pragma mark - Initialization
 
 - (id)initWithClientId:(NSString *)cId clientSecret:(NSString *)cSecret andRedirectUrl:(NSString *)redirectUrl {
     self = [super init];
@@ -215,11 +230,7 @@
 }
 
 - (void)fetchAccountDataForAPIKey:(NSString *)apiKey {
-	ChimpKit *chimpKit = [[ChimpKit alloc] init];
-	
-	chimpKit.apiKey = apiKey;
-	
-	[chimpKit callApiMethod:@"users/profile" withParams:nil andCompletionHandler:^(ChimpKitRequest *request, NSError *error) {
+	[self.chimpKit callApiMethod:@"users/profile" withApiKey:apiKey params:nil andCompletionHandler:^(NSURLResponse *response, NSData *data, NSError *error) {
 		if (error) {
 			if (self.delegate && [self.delegate respondsToSelector:@selector(ckAuthFailedWithError:)]) {
 				[self.delegate ckAuthFailedWithError:error];
@@ -229,10 +240,11 @@
 				self.authFailed(error);
 			}
 		} else {
-			if (kCKDebug) NSLog(@"Response String: %@", [request responseString]);
+			NSString *responseString = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+			if (kCKDebug) NSLog(@"Response String: %@", responseString);
 			
 			NSError *error = nil;
-			id responseData = [NSJSONSerialization JSONObjectWithData:[[request responseString] dataUsingEncoding:NSUTF8StringEncoding]
+			id responseData = [NSJSONSerialization JSONObjectWithData:data
 															  options:0
 																error:&error];
 			
@@ -272,10 +284,6 @@
 
 #pragma mark - <UIWebViewDelegate> Methods
 
-- (void)webViewDidStartLoad:(UIWebView *)aWebView {
-    [self.spinner setHidden:NO];
-}
-
 - (BOOL)webView:(UIWebView *)webView shouldStartLoadWithRequest:(NSURLRequest *)request navigationType:(UIWebViewNavigationType)navigationType {
     [self.spinner setHidden:YES];
     
@@ -296,6 +304,10 @@
     }
     
     return YES;
+}
+
+- (void)webViewDidStartLoad:(UIWebView *)aWebView {
+    [self.spinner setHidden:NO];
 }
 
 - (void)webViewDidFinishLoad:(UIWebView *)webView {

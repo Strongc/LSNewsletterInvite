@@ -1,3 +1,5 @@
-platform :ios, '6.1'
+platform :ios, '7.0'
 
-pod 'LSNewsletterInvite'
+target :LSNewsletterInviteDemo do
+	pod 'LSNewsletterInvite', :path => '../'
+end

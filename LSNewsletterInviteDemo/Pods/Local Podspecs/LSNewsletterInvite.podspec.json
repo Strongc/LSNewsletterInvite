@@ -1,0 +1,30 @@
+{
+  "name": "LSNewsletterInvite",
+  "version": "0.6.3",
+  "summary": "A simple newsletter invite popup that works with MailChimp",
+  "homepage": "https://github.com/learnstack/lsnewsletterinvite",
+  "license": "MIT",
+  "authors": {
+    "Joshua Howland": "mail@jkhowland.com"
+  },
+  "source": {
+    "git": "https://github.com/LearnStack/LSNewsletterInvite.git",
+    "tag": "0.6.3"
+  },
+  "source_files": "LSNewsletterInvite",
+  "platforms": {
+    "ios": "7.0"
+  },
+  "public_header_files": [
+    "LSNewsletterInvite",
+    "*.h"
+  ],
+  "dependencies": {
+    "ChimpKit": [
+      "~> 3.1.1"
+    ],
+    "SVProgressHUD": [
+      "~> 1.0"
+    ]
+  }
+}

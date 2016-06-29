@@ -7,7 +7,8 @@ Pod::Spec.new do |s|
   s.author       = { 'Joshua Howland' => 'mail@jkhowland.com' }
   s.source       = { :git => "https://github.com/LearnStack/LSNewsletterInvite.git", :tag => "0.6" }
   s.source_files = 'LSNewsletterInvite'
-  s.platform     = :ios, '6.1'
+  s.platform     = :ios, '7.0'
+  s.ios.deployment_target = '7.0'
   s.public_header_files = 'LSNewsletterInvite', '*.h'
   
   s.dependency 'ChimpKit', '~> 3.0.2'

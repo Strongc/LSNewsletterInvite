@@ -13,6 +13,25 @@
 #define kErrorDomain	@"com.MailChimp.ChimpKit.ErrorDomain"
 
 
+@interface ChimpKit () <NSURLSessionTaskDelegate>
+
+@property (nonatomic, strong) NSURLSession *urlSession;
+@property (nonatomic, strong) NSMutableDictionary *requests;
+
+@end
+
+
+@interface ChimpKitRequestWrapper : NSObject
+
+@property (nonatomic, strong) NSURLSessionDataTask *dataTask;
+@property (nonatomic, strong) NSMutableData *receivedData;
+
+@property (nonatomic, copy) ChimpKitRequestCompletionBlock completionHandler;
+@property (nonatomic, strong) id<ChimpKitRequestDelegate> delegate;
+
+@end
+
+
 @implementation ChimpKit
 
 #pragma mark - Class Methods
@@ -23,14 +42,32 @@
 	
 	dispatch_once(&pred, ^{
 		_sharedKit = [[self alloc] init];
-		_sharedKit.timeoutInterval = kDefaultTimeoutInterval;
 	});
 	
 	return _sharedKit;
 }
 
+- (id)init {
+	if (self = [super init]) {
+		self.timeoutInterval = kDefaultTimeoutInterval;
+		self.requests = [[NSMutableDictionary alloc] init];
+	}
+	
+	return self;
+}
+
 
 #pragma mark - Properties
+
+- (NSURLSession *)urlSession {
+	if (_urlSession == nil) {
+		_urlSession = [NSURLSession sessionWithConfiguration:[NSURLSessionConfiguration defaultSessionConfiguration]
+													delegate:self
+											   delegateQueue:nil];
+	}
+	
+	return _urlSession;
+}
 
 - (void)setApiKey:(NSString *)apiKey {
 	_apiKey = apiKey;
@@ -49,48 +86,43 @@
 
 #pragma mark - API Methods
 
-- (void)callApiMethod:(NSString *)aMethod withParams:(NSDictionary *)someParams andCompletionHandler:(ChimpKitRequestCompletionBlock)aHandler {
-    [self callApiMethod:aMethod withApiKey:nil params:someParams andCompletionHandler:aHandler];
+- (NSUInteger)callApiMethod:(NSString *)aMethod withParams:(NSDictionary *)someParams andCompletionHandler:(ChimpKitRequestCompletionBlock)aHandler {
+    return [self callApiMethod:aMethod withApiKey:nil params:someParams andCompletionHandler:aHandler];
 }
 
-- (void)callApiMethod:(NSString *)aMethod withApiKey:(NSString *)anApiKey params:(NSDictionary *)someParams andCompletionHandler:(ChimpKitRequestCompletionBlock)aHandler {
+- (NSUInteger)callApiMethod:(NSString *)aMethod withApiKey:(NSString *)anApiKey params:(NSDictionary *)someParams andCompletionHandler:(ChimpKitRequestCompletionBlock)aHandler {
 	if (aHandler == nil) {
-		if (self.delegate && [self.delegate respondsToSelector:@selector(methodCall:failedWithError:)]) {
-			NSError *error = [NSError errorWithDomain:kErrorDomain code:kChimpKitErrorInvalidCompletionHandler userInfo:nil];
-			[self.delegate methodCall:aMethod failedWithError:error];
-		}
-		
-		return;
+		return 0;
 	}
     
-	[self callApiMethod:aMethod withApiKey:anApiKey params:someParams andCompletionHandler:aHandler orDelegate:nil];
+	return [self callApiMethod:aMethod withApiKey:anApiKey params:someParams andCompletionHandler:aHandler orDelegate:nil];
 }
 
-- (void)callApiMethod:(NSString *)aMethod withParams:(NSDictionary *)someParams andDelegate:(id<ChimpKitRequestDelegate>)aDelegate {
-    [self callApiMethod:aMethod withApiKey:nil params:someParams andDelegate:aDelegate];
+- (NSUInteger)callApiMethod:(NSString *)aMethod withParams:(NSDictionary *)someParams andDelegate:(id<ChimpKitRequestDelegate>)aDelegate {
+    return [self callApiMethod:aMethod withApiKey:nil params:someParams andDelegate:aDelegate];
 }
 
-- (void)callApiMethod:(NSString *)aMethod withApiKey:(NSString *)anApiKey params:(NSDictionary *)someParams andDelegate:(id<ChimpKitRequestDelegate>)aDelegate {
+- (NSUInteger)callApiMethod:(NSString *)aMethod withApiKey:(NSString *)anApiKey params:(NSDictionary *)someParams andDelegate:(id<ChimpKitRequestDelegate>)aDelegate {
 	if (aDelegate == nil) {
-		if (self.delegate && [self.delegate respondsToSelector:@selector(methodCall:failedWithError:)]) {
-			NSError *error = [NSError errorWithDomain:kErrorDomain code:kChimpKitErrorInvalidDelegate userInfo:nil];
-			[self.delegate methodCall:aMethod failedWithError:error];
-		}
-		
-		return;
+		return 0;
 	}
     
-	[self callApiMethod:aMethod withApiKey:anApiKey params:someParams andCompletionHandler:nil orDelegate:aDelegate];
+	return [self callApiMethod:aMethod withApiKey:anApiKey params:someParams andCompletionHandler:nil orDelegate:aDelegate];
 }
 
-- (void)callApiMethod:(NSString *)aMethod withApiKey:(NSString *)anApiKey params:(NSDictionary *)someParams andCompletionHandler:(ChimpKitRequestCompletionBlock)aHandler orDelegate:(id<ChimpKitRequestDelegate>)aDelegate {
+- (NSUInteger)callApiMethod:(NSString *)aMethod withApiKey:(NSString *)anApiKey params:(NSDictionary *)someParams andCompletionHandler:(ChimpKitRequestCompletionBlock)aHandler orDelegate:(id<ChimpKitRequestDelegate>)aDelegate {
 	if ((anApiKey == nil) && (self.apiKey == nil)) {
-		if (self.delegate && [self.delegate respondsToSelector:@selector(methodCall:failedWithError:)]) {
-			NSError *error = [NSError errorWithDomain:kErrorDomain code:kChimpKitErrorInvalidAPIKey userInfo:nil];
-			[self.delegate methodCall:aMethod failedWithError:error];
+		NSError *error = [NSError errorWithDomain:kErrorDomain code:kChimpKitErrorInvalidAPIKey userInfo:nil];
+		
+		if (aDelegate && [aDelegate respondsToSelector:@selector(ckRequestFailedWithIdentifier:andError:)]) {
+			[aDelegate ckRequestFailedWithIdentifier:0 andError:error];
 		}
 		
-		return;
+		if (aHandler) {
+			aHandler(nil, nil, error);
+		}
+		
+		return 0;
 	}
 	
 	NSString *urlString = nil;
@@ -104,15 +136,15 @@
 		} else {
             NSError *error = [NSError errorWithDomain:kErrorDomain code:kChimpKitErrorInvalidAPIKey userInfo:nil];
 
-			if (self.delegate && [self.delegate respondsToSelector:@selector(methodCall:failedWithError:)]) {
-				[self.delegate methodCall:aMethod failedWithError:error];
+			if (aDelegate && [aDelegate respondsToSelector:@selector(ckRequestFailedWithIdentifier:andError:)]) {
+				[aDelegate ckRequestFailedWithIdentifier:0 andError:error];
 			}
             
             if (aHandler) {
-                aHandler(nil, error);
+                aHandler(nil, nil, error);
             }
 			
-			return;
+			return 0;
 		}
 		
 		[params setValue:anApiKey forKey:@"apikey"];
@@ -122,19 +154,76 @@
 	}
 	
 	if (kCKDebug) NSLog(@"URL: %@", urlString);
-	    
-	ChimpKitRequest *request = [ChimpKitRequest requestWithURL:[NSURL URLWithString:urlString]];
-	[request setHttpMethod:@"POST"];
-	[request setHttpBody:[self encodeRequestParams:params]];
-	[request setShouldUseBackgroundThread:self.shouldUseBackgroundThread];
 	
-	if (aHandler) {
-		[request startImmediatelyWithCompletionHandler:aHandler];
-	} else {
-		[request setDelegate:aDelegate];
-		
-		[request startImmediately];
+	NSMutableURLRequest *request = [[NSMutableURLRequest alloc] initWithURL:[NSURL URLWithString:urlString]
+																cachePolicy:NSURLRequestUseProtocolCachePolicy
+															timeoutInterval:self.timeoutInterval];
+	
+	[request setHTTPMethod:@"POST"];
+	[request setHTTPBody:[self encodeRequestParams:params]];
+	
+	NSURLSessionDataTask *dataTask = [self.urlSession dataTaskWithRequest:request];
+	
+	ChimpKitRequestWrapper *requestWrapper = [[ChimpKitRequestWrapper alloc] init];
+	
+	requestWrapper.dataTask = dataTask;
+	requestWrapper.delegate = aDelegate;
+	requestWrapper.completionHandler = aHandler;
+	
+	[dataTask resume];
+	
+	[self.requests setObject:requestWrapper forKey:[NSNumber numberWithUnsignedInteger:[dataTask taskIdentifier]]];
+	
+	return [dataTask taskIdentifier];
+}
+
+- (void)cancelRequestWithIdentifier:(NSUInteger)identifier {
+	ChimpKitRequestWrapper *requestWrapper = [self.requests objectForKey:[NSNumber numberWithUnsignedInteger:identifier]];
+	
+	[requestWrapper.dataTask cancel];
+	
+	[self.requests removeObjectForKey:[NSNumber numberWithUnsignedInteger:identifier]];
+}
+
+
+#pragma mark - <NSURLSessionTaskDelegate> Methods
+
+- (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task didSendBodyData:(int64_t)bytesSent totalBytesSent:(int64_t)totalBytesSent totalBytesExpectedToSend:(int64_t)totalBytesExpectedToSend {
+	ChimpKitRequestWrapper *requestWrapper = [self.requests objectForKey:[NSNumber numberWithUnsignedInteger:[task taskIdentifier]]];
+	
+	if (requestWrapper.delegate && [requestWrapper.delegate respondsToSelector:@selector(ckRequestIdentifier:didUploadBytes:outOfBytes:)]) {
+		[requestWrapper.delegate ckRequestIdentifier:[task  taskIdentifier]
+									  didUploadBytes:totalBytesSent
+										  outOfBytes:totalBytesExpectedToSend];
 	}
+}
+
+- (void)URLSession:(NSURLSession *)session dataTask:(NSURLSessionDataTask *)dataTask didReceiveData:(NSData *)data {
+	ChimpKitRequestWrapper *requestWrapper = [self.requests objectForKey:[NSNumber numberWithUnsignedInteger:[dataTask taskIdentifier]]];
+	[requestWrapper.receivedData appendData:data];
+}
+
+- (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task didCompleteWithError:(NSError *)error {
+	ChimpKitRequestWrapper *requestWrapper = [self.requests objectForKey:[NSNumber numberWithUnsignedInteger:[task taskIdentifier]]];
+	
+	if (requestWrapper.completionHandler) {
+		requestWrapper.completionHandler(task.response, requestWrapper.receivedData, error);
+	} else {
+		if (error) {
+			if (requestWrapper.delegate && [requestWrapper.delegate respondsToSelector:@selector(ckRequestFailedWithIdentifier:andError:)]) {
+				[requestWrapper.delegate ckRequestFailedWithIdentifier:[task taskIdentifier]
+															  andError:error];
+			}
+		} else {
+			if (requestWrapper.delegate && [requestWrapper.delegate respondsToSelector:@selector(ckRequestIdentifier:didSucceedWithResponse:andData:)]) {
+				[requestWrapper.delegate ckRequestIdentifier:[task taskIdentifier]
+									  didSucceedWithResponse:task.response
+													 andData:requestWrapper.receivedData];
+			}
+		}
+	}
+	
+	[self.requests removeObjectForKey:[NSNumber numberWithUnsignedInteger:[task taskIdentifier]]];
 }
 
 
@@ -149,5 +238,18 @@
     return postData;
 }
 
+
+@end
+
+
+@implementation ChimpKitRequestWrapper
+
+- (id)init {
+	if (self = [super init]) {
+		self.receivedData = [[NSMutableData alloc] init];
+	}
+	
+	return self;
+}
 
 @end

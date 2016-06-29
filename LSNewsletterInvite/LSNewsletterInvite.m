@@ -1107,8 +1107,13 @@ static NSString * const kEmailRegex = (@"(?:[a-z0-9!#$%\\&'*+/=?\\^_`{|}~-]+(?:\
     NSString *email = [self.emailTextField.text stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
     [params setValue:email forKey:@"email_address"];
     
+<<<<<<< Updated upstream
     [params setValue:@"false" forKey:@"replace_interests"];
     [params setValue:@"true" forKey:@"update_existing"];
+=======
+    BOOL uMailChimpDoubleOptIn = NO;
+    [parameters setValue:[NSNumber numberWithBool:uMailChimpDoubleOptIn] forKey:@"double_optin"];
+>>>>>>> Stashed changes
     
     NSMutableDictionary *mergeVars = [NSMutableDictionary dictionary];
     NSString *name = self.nameTextField.text;
@@ -1133,8 +1138,7 @@ static NSString * const kEmailRegex = (@"(?:[a-z0-9!#$%\\&'*+/=?\\^_`{|}~-]+(?:\
 
 #pragma mark ChimpKitDelegate
 
-- (void)ckRequestSucceeded:(ChimpKitRequest *)aRequest {
-    
+- (void)ckRequestIdentifier:(NSUInteger)requestIdentifier didSucceedWithResponse:(NSURLResponse *)response andData:(NSData *)data {
     [SVProgressHUD showSuccessWithStatus:@"Subscribed"];
     
     if (_delegate) {
@@ -1153,7 +1157,7 @@ static NSString * const kEmailRegex = (@"(?:[a-z0-9!#$%\\&'*+/=?\\^_`{|}~-]+(?:\
     [[NSNotificationCenter defaultCenter] postNotificationName:kLSNewsletterInviteSuccessfulSignupNotificationKey object:nil userInfo:userInfo];
 }
 
-- (void)ckRequestFailed:(ChimpKitRequest *)aRequest andError:(NSError *)anError {
+- (void)ckRequestFailedWithIdentifier:(NSUInteger)requestIdentifier andError:(NSError *)anError {
     [SVProgressHUD showErrorWithStatus:@"Failed"];
 }
 

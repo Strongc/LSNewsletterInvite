@@ -7,7 +7,6 @@
 //
 
 #import <Foundation/Foundation.h>
-#import "ChimpKitRequest.h"
 
 
 #define kCKDebug					0
@@ -21,17 +20,20 @@ typedef enum {
 } ChimpKitError;
 
 
-@protocol ChimpKitDelegate <NSObject>
+@protocol ChimpKitRequestDelegate <NSObject>
 
 @optional
-- (void)methodCall:(NSString *)aMethod failedWithError:(NSError *)anError;
+- (void)ckRequestIdentifier:(NSUInteger)requestIdentifier didUploadBytes:(int64_t)bytes outOfBytes:(int64_t)totalBytes;
+- (void)ckRequestIdentifier:(NSUInteger)requestIdentifier didSucceedWithResponse:(NSURLResponse *)response andData:(NSData *)data;
+- (void)ckRequestFailedWithIdentifier:(NSUInteger)requestIdentifier andError:(NSError *)anError;
 
 @end
 
 
-@interface ChimpKit : NSObject
+typedef void (^ChimpKitRequestCompletionBlock)(NSURLResponse *response, NSData *data, NSError *error);
 
-@property (nonatomic, strong) id<ChimpKitDelegate> delegate;
+
+@interface ChimpKit : NSObject
 
 @property (nonatomic, strong) NSString *apiKey;
 @property (nonatomic, strong) NSString *apiURL;
@@ -40,24 +42,27 @@ typedef enum {
 
 + (ChimpKit *)sharedKit;
 
-- (void)callApiMethod:(NSString *)aMethod
-		   withParams:(NSDictionary *)someParams
- andCompletionHandler:(ChimpKitRequestCompletionBlock)aHandler;
+// Returns unique identifier for each request
+- (NSUInteger)callApiMethod:(NSString *)aMethod
+				 withParams:(NSDictionary *)someParams
+	   andCompletionHandler:(ChimpKitRequestCompletionBlock)aHandler;
 
-- (void)callApiMethod:(NSString *)aMethod
-		   withParams:(NSDictionary *)someParams
-		  andDelegate:(id<ChimpKitRequestDelegate>)aDelegate;
+- (NSUInteger)callApiMethod:(NSString *)aMethod
+				 withParams:(NSDictionary *)someParams
+				andDelegate:(id<ChimpKitRequestDelegate>)aDelegate;
 
 // If these methods are called with a nil apikey, ChimpKit falls back to
 // using the global apikey
-- (void)callApiMethod:(NSString *)aMethod
-           withApiKey:(NSString *)anApiKey
-               params:(NSDictionary *)someParams
- andCompletionHandler:(ChimpKitRequestCompletionBlock)aHandler;
+- (NSUInteger)callApiMethod:(NSString *)aMethod
+				 withApiKey:(NSString *)anApiKey
+					 params:(NSDictionary *)someParams
+	   andCompletionHandler:(ChimpKitRequestCompletionBlock)aHandler;
 
-- (void)callApiMethod:(NSString *)aMethod
-           withApiKey:(NSString *)anApiKey
-               params:(NSDictionary *)someParams
-          andDelegate:(id<ChimpKitRequestDelegate>)aDelegate;
+- (NSUInteger)callApiMethod:(NSString *)aMethod
+				 withApiKey:(NSString *)anApiKey
+					 params:(NSDictionary *)someParams
+				andDelegate:(id<ChimpKitRequestDelegate>)aDelegate;
+
+- (void)cancelRequestWithIdentifier:(NSUInteger)requestIdentifier;
 
 @end
